@@ -1,40 +1,68 @@
-import express, { Express, Request, Response } from "express";
-import cors from "cors";
-import dotenv from "dotenv";
-import connectDB from "./config/db";
-import userRoutes from "./routes/userRoutes";
+import express, { Express, Request, Response } from 'express'
+import dotenv from 'dotenv'
+import { security } from './middlewares/security'
+import semoso from './app/semoso/use'
+import promptGenerate from './app/prompt-generate/use'
 
-// Load environment variables
-dotenv.config();
+// 환경변수 로드 (가장 먼저 실행)
+dotenv.config()
 
-const app: Express = express();
-const PORT = process.env.PORT || 3000;
+const app: Express = express()
+const PORT = 5000
 
-// Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// ─────────────────────────────────────────────────
+// 보안 미들웨어 (순서 중요)
+// ─────────────────────────────────────────────────
+app.use(security.headers)              // 1. 보안 헤더 (XSS, clickjacking 방지)
+app.use(security.cors)                 // 2. CORS (허용된 도메인만 접근)
+app.use(security.rateLimit)            // 3. Rate Limiting (과도한 요청 차단)
+app.use(express.json({ limit: '10kb' }))               // 4. JSON 파싱 + 크기 제한
+app.use(express.urlencoded({ extended: true, limit: '10kb' })) // 5. 폼 데이터 파싱 + 크기 제한
+app.use(security.noSqlSanitize)        // 6. NoSQL 인젝션 방지
+app.use(security.parameterPollution)   // 7. HTTP 파라미터 오염 방지
 
-// Routes
-app.get("/", (_req: Request, res: Response) => {
-  res.json({ message: "Express + TypeScript + MongoDB API" });
-});
+// ─────────────────────────────────────────────────
+// 상태 확인
+// ─────────────────────────────────────────────────
+app.get('/', (_req: Request, res: Response) => {
+    res.send(`
+    <!DOCTYPE html>
+    <html lang="ko">
+      <head>
+        <meta charset="UTF-8" />
+        <title>서버 상태</title>
+        <style>
+          body { display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f0f4f8; font-family: sans-serif; }
+          .card { background: white; border-radius: 12px; padding: 48px 64px; text-align: center; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
+          .dot { width: 16px; height: 16px; background: #22c55e; border-radius: 50%; display: inline-block; margin-right: 8px; animation: pulse 1.5s infinite; }
+          @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+          h1 { color: #1e293b; font-size: 1.8rem; margin: 16px 0 8px; }
+          p { color: #64748b; margin: 0; }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <span class="dot"></span>
+          <h1>연결 완료</h1>
+          <p>서버가 정상적으로 실행 중입니다 · Port ${PORT}</p>
+        </div>
+      </body>
+    </html>
+  `)
+})
 
-app.get("/api/health", (_req: Request, res: Response) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
-});
+app.get('/api/health', (_req: Request, res: Response) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() })
+})
 
-app.use("/api/users", userRoutes);
+// ─────────────────────────────────────────────────
+// 플랫폼 라우트
+// ─────────────────────────────────────────────────
+app.use('/semoso', semoso)
+app.use('/prompt-generate', promptGenerate)
 
-// Connect to database and start server
-const startServer = async () => {
-  await connectDB();
+app.listen(PORT, () => {
+    console.log(`Server is running on http://localhost:${PORT}`)
+})
 
-  app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-  });
-};
-
-startServer();
-
-export default app;
+export default app

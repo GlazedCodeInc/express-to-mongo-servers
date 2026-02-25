@@ -5,6 +5,12 @@
     "lib": ["ES2020"],
     "outDir": "./dist",
     "rootDir": "./src",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@/_schemas/semoso/*": ["src/app/semoso/schemas/*"],
+      "@/_schemas/all-in-app/*": ["src/app/prompt-generate/schemas/*"]
+    },
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -14,6 +20,9 @@
     "declarationMap": true,
     "sourceMap": true,
     "moduleResolution": "node"
+  },
+  "ts-node": {
+    "require": ["tsconfig-paths/register"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
