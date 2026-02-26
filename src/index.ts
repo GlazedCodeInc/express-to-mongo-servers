@@ -1,35 +1,35 @@
-import express, { Express, Request, Response } from 'express'
-import dotenv from 'dotenv'
-import { security } from './middlewares/security'
-import semoso from './app/semoso/use'
-import promptGenerate from './app/prompt-generate/use'
+import dotenv from "dotenv";
+import express, { Express, Request, Response } from "express";
+import promptGenerate from "./app/prompt-generate/use";
+import semoso from "./app/semoso/use";
+import { security } from "./middlewares/security";
 
 // 환경변수 로드 (가장 먼저 실행)
-dotenv.config()
+dotenv.config();
 
-const app: Express = express()
-const PORT = 5000
+const app: Express = express();
+const PORT = 5000;
 
 // CDN/프록시(Cloudflare, nginx) 뒤에서 실제 클라이언트 IP 신뢰
 // rate-limit이 CDN IP가 아닌 실제 사용자 IP별로 동작하려면 필수
-app.set('trust proxy', 1)
+app.set("trust proxy", 1);
 
 // ─────────────────────────────────────────────────
 // 보안 미들웨어 (순서 중요)
 // ─────────────────────────────────────────────────
-app.use(security.headers)              // 1. 보안 헤더 (XSS, clickjacking 방지)
-app.use(security.cors)                 // 2. CORS (허용된 도메인만 접근)
-app.use(security.rateLimit)            // 3. Rate Limiting (과도한 요청 차단)
-app.use(express.json({ limit: '10kb' }))               // 4. JSON 파싱 + 크기 제한
-app.use(express.urlencoded({ extended: true, limit: '10kb' })) // 5. 폼 데이터 파싱 + 크기 제한
-app.use(security.noSqlSanitize)        // 6. NoSQL 인젝션 방지
-app.use(security.parameterPollution)   // 7. HTTP 파라미터 오염 방지
+app.use(security.headers); // 1. 보안 헤더 (XSS, clickjacking 방지)
+app.use(security.cors); // 2. CORS (허용된 도메인만 접근)
+app.use(security.rateLimit); // 3. Rate Limiting (과도한 요청 차단)
+app.use(express.json({ limit: "10kb" })); // 4. JSON 파싱 + 크기 제한
+app.use(express.urlencoded({ extended: true, limit: "10kb" })); // 5. 폼 데이터 파싱 + 크기 제한
+app.use(security.noSqlSanitize); // 6. NoSQL 인젝션 방지
+app.use(security.parameterPollution); // 7. HTTP 파라미터 오염 방지
 
 // ─────────────────────────────────────────────────
 // 상태 확인
 // ─────────────────────────────────────────────────
-app.get('/', (_req: Request, res: Response) => {
-    res.send(`
+app.get("/", (_req: Request, res: Response) => {
+  res.send(`
     <!DOCTYPE html>
     <html lang="ko">
       <head>
@@ -40,33 +40,31 @@ app.get('/', (_req: Request, res: Response) => {
           .card { background: white; border-radius: 12px; padding: 48px 64px; text-align: center; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
           .dot { width: 16px; height: 16px; background: #22c55e; border-radius: 50%; display: inline-block; margin-right: 8px; animation: pulse 1.5s infinite; }
           @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-          h1 { color: #1e293b; font-size: 1.8rem; margin: 16px 0 8px; }
-          p { color: #64748b; margin: 0; }
+         
         </style>
       </head>
       <body>
         <div class="card">
           <span class="dot"></span>
-          <h1>연결 완료</h1>
-          <p>서버가 정상적으로 실행 중입니다 · Port ${PORT}</p>
+      
         </div>
       </body>
     </html>
-  `)
-})
+  `);
+});
 
-app.get('/api/health', (_req: Request, res: Response) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() })
-})
+app.get("/api/health", (_req: Request, res: Response) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
 
 // ─────────────────────────────────────────────────
 // 플랫폼 라우트
 // ─────────────────────────────────────────────────
-app.use('/semoso', semoso)
-app.use('/prompt-generate', promptGenerate)
+app.use("/semoso", semoso);
+app.use("/prompt-generate", promptGenerate);
 
 app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`)
-})
+  console.log(`Server is running on http://localhost:${PORT}`);
+});
 
-export default app
+export default app;

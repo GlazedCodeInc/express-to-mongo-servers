@@ -22,10 +22,10 @@ const CONFIG = {
 // ============================================================
 
 export interface AIOptions {
-  model?: string;
-  maxTokens?: number;
-  temperature?: number;
-  systemPrompt?: string;
+  model?: string; // BASE_MODEL
+  maxTokens?: number; // CONFIG.MAX_TOKENS
+  temperature?: number; // CONFIG.TEMPERATURE
+  systemPrompt?: string; // AI의 성격/규칙/맥락 설정
 }
 
 export interface AIResponse {
