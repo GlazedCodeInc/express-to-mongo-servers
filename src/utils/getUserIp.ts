@@ -3,6 +3,18 @@
  * 다양한 프록시, CDN, 로드밸런서 환경에서 실제 클라이언트 IP를 정확하게 추출
  */
 
+/**
+ * IPv6-mapped IPv4 주소 정규화
+ * ::ffff:1.2.3.4 → 1.2.3.4 (geoip-lite 및 isLocalIP 호환)
+ */
+export function normalizeIP(ip: string): string {
+    if (!ip) return ip
+    if (ip.toLowerCase().startsWith('::ffff:')) {
+        return ip.slice(7)
+    }
+    return ip
+}
+
 export async function getUserIP(req: Request | any): Promise<string> {
     // Next.js NextApiRequest와 표준 Request 모두 지원
     let headers: Record<string, string | string[] | undefined>
@@ -14,20 +26,28 @@ export async function getUserIP(req: Request | any): Promise<string> {
         // Next.js NextApiRequest 또는 Node.js IncomingMessage
         headers = req.headers as Record<string, string | string[] | undefined>
     } else {
-        // headers가 없는 경우
         headers = {}
     }
 
-    // 우선순위 기반 간단한 IP 추출
-    const priorityHeaders = ['x-forwarded-for', 'x-real-ip', 'cf-connecting-ip', 'x-vercel-forwarded-for']
+    // CDN/프록시 특화 헤더 우선순위 (신뢰도 높은 순)
+    // ※ 각 헤더는 해당 CDN 뒤에 배포했을 때만 신뢰 가능
+    const priorityHeaders = [
+        'cf-connecting-ip',       // Cloudflare: 실제 클라이언트 IP (단일값, 위조 불가)
+        'true-client-ip',         // Cloudflare Enterprise / Akamai
+        'x-real-ip',              // nginx (관리자 직접 설정)
+        'fastly-client-ip',       // Fastly CDN
+        'x-client-ip',            // Apache mod_remoteip
+        'x-vercel-forwarded-for', // Vercel
+        'x-forwarded-for',        // 표준 (쉼표 구분 체인, 첫 번째가 원본 클라이언트)
+    ]
 
     for (const header of priorityHeaders) {
         const headerValue = headers[header]
         if (headerValue) {
-            // string[] 타입도 처리
             const headerString = Array.isArray(headerValue) ? headerValue[0] : headerValue
             if (headerString) {
-                const ips = headerString.split(',').map((ip) => ip.trim())
+                // ::ffff: 접두사 정규화 후 공인 IP 여부 확인
+                const ips = headerString.split(',').map((ip) => normalizeIP(ip.trim()))
                 for (const candidateIp of ips) {
                     if (isValidPublicIP(candidateIp)) {
                         return candidateIp
@@ -37,44 +57,36 @@ export async function getUserIP(req: Request | any): Promise<string> {
         }
     }
 
-    // 개발환경용 랜덤 IP 주소 생성 xxx.xxx.xxx.xxx
-    function generateRandomIP(): string {
-        const firstOctet = Math.floor(Math.random() * 100) + 100 // 100-199 (xxx)
-        const secondOctet = Math.floor(Math.random() * 100) + 100 // 100-199 (xxx)
-        const thirdOctet = Math.floor(Math.random() * 156) + 100 // 100-255 (xxx)
-        const fourthOctet = Math.floor(Math.random() * 156) + 100 // 100-255 (xxx)
-
-        return `${firstOctet}.${secondOctet}.${thirdOctet}.${fourthOctet}`
+    // 소켓 직접 연결 IP (프록시 없는 로컬/직접 연결 환경 폴백)
+    const socketIp = (req as any).ip ?? req.socket?.remoteAddress
+    if (socketIp) {
+        const normalizedSocketIp = normalizeIP(socketIp)
+        // 로컬 IP는 랜덤 IP로 대체 (개인 식별 방지)
+        return isLocalIP(normalizedSocketIp) ? generateRandomIP() : normalizedSocketIp
     }
-
-    // 개발환경 로컬 IP (랜덤 생성)
-    if (process.env.NODE_ENV === 'development') return generateRandomIP()
 
     return 'unknown'
 }
 
-// 유효한 공인 IP인지 확인 (자체 구현)
+// 로컬 환경용 랜덤 공인 IP 생성 (100~255 범위: 사설 IP 범위 회피)
+function generateRandomIP(): string {
+    const o = () => Math.floor(Math.random() * 156) + 100
+    return `${o()}.${o()}.${o()}.${o()}`
+}
+
+// 유효한 공인 IP인지 확인
 function isValidPublicIP(ip: string): boolean {
     if (!ip) return false
-
-    // IP 형식 검증
     if (!isValidIPv4(ip) && !isValidIPv6(ip)) return false
-
-    // 로컬/내부 IP 제외
     if (isLocalIP(ip)) return false
-
     return true
 }
 
 // IPv4 주소 검증
 function isValidIPv4(ip: string): boolean {
     if (!ip) return false
-
-    // 기본 IPv4 패턴 체크
     const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/
     if (!ipv4Regex.test(ip)) return false
-
-    // 각 옥텟 범위 검증
     const parts = ip.split('.')
     return (
         parts.length === 4 &&
@@ -85,36 +97,43 @@ function isValidIPv4(ip: string): boolean {
     )
 }
 
-// IPv6 주소 검증 (기본적인 형태)
+// IPv6 주소 검증
 function isValidIPv6(ip: string): boolean {
     if (!ip) return false
-
-    // 기본 IPv6 패턴들
     const ipv6Patterns = [
-        /^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$/, // 전체 형태
-        /^([0-9a-fA-F]{1,4}:)*::([0-9a-fA-F]{1,4}:)*[0-9a-fA-F]{1,4}$/, // 축약 형태
-        /^::$/, // ::
-        /^::1$/, // localhost
-        /^::ffff:[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$/, // IPv4-mapped
+        /^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$/,
+        /^([0-9a-fA-F]{1,4}:)*::([0-9a-fA-F]{1,4}:)*[0-9a-fA-F]{1,4}$/,
+        /^::$/,
+        /^::1$/,
+        /^::ffff:[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$/,
     ]
-
     return ipv6Patterns.some((pattern) => pattern.test(ip))
 }
 
-// 로컬/내부 IP인지 확인 (개선된 버전)
-function isLocalIP(ip: string): boolean {
+/**
+ * 로컬/내부 IP인지 확인
+ *
+ * ::ffff:x.x.x.x 형식은 IPv4 부분만 추출하여 판단
+ * (::ffff:8.8.8.8 같은 공인 IPv6-mapped 주소를 로컬로 잘못 분류하지 않음)
+ */
+export function isLocalIP(ip: string): boolean {
     if (!ip) return true
 
-    // IPv4 로컬/내부 IP 범위
-    const ipv4LocalRanges = [
-        '127.', // 127.0.0.0/8 (localhost)
+    // IPv6-mapped IPv4 정규화 후 재귀 판단
+    // ::ffff:127.0.0.1 → local, ::ffff:8.8.8.8 → public
+    const normalized = normalizeIP(ip)
+    if (normalized !== ip) return isLocalIP(normalized)
+
+    // IPv4 사설/로컬 범위
+    const ipv4LocalPrefixes = [
+        '127.',     // 127.0.0.0/8 (localhost)
         '192.168.', // 192.168.0.0/16 (private)
-        '10.', // 10.0.0.0/8 (private)
+        '10.',      // 10.0.0.0/8 (private)
         '169.254.', // 169.254.0.0/16 (link-local)
-        '0.0.0.0', // invalid
+        '0.0.0.0',  // invalid
     ]
 
-    // IPv4 172.16.0.0/12 private range (172.16.0.0 ~ 172.31.255.255)
+    // 172.16.0.0/12 private range (172.16 ~ 172.31)
     const ipParts = ip.split('.')
     if (ipParts.length === 4) {
         const secondOctet = parseInt(ipParts[1])
@@ -123,47 +142,28 @@ function isLocalIP(ip: string): boolean {
         }
     }
 
-    // IPv4 로컬 범위 체크
-    for (const range of ipv4LocalRanges) {
-        if (ip.startsWith(range)) return true
+    for (const prefix of ipv4LocalPrefixes) {
+        if (ip.startsWith(prefix)) return true
     }
 
-    // IPv6 로컬/내부 주소
-    const ipv6LocalRanges = [
-        '::1', // localhost
-        '::ffff:', // IPv4-mapped IPv6
+    // IPv6 로컬 주소 (::ffff: 제외 — 위에서 normalizeIP로 이미 처리됨)
+    const ipv6LocalPrefixes = [
+        '::1',   // localhost
         'fe80:', // link-local
         'fc00:', // unique local
         'fd00:', // unique local
         'ff00:', // multicast
     ]
 
-    for (const range of ipv6LocalRanges) {
-        if (ip.startsWith(range)) return true
+    for (const prefix of ipv6LocalPrefixes) {
+        if (ip.toLowerCase().startsWith(prefix)) return true
     }
 
     return false
 }
 
 /**
- * 비회원 사용자 식별을 위한 IP 기반 해시 생성
- *
- * @description
- * IP 주소와 User-Agent를 조합하여 비회원 사용자를 고유하게 식별할 수 있는 해시값을 생성합니다.
- * SHA-256 암호화 알고리즘을 사용하여 보안성을 보장하며, 동일한 IP와 User-Agent는 항상 동일한 해시를 생성합니다.
- * @returns 16자리 16진수 문자열 (예: "a3f5c8b2e1d4f6a9", "7f2e9d1a4c6b8e3f")
- *
- * // 기본 사용
- * const hash1 = generateGuestUserHash("192.168.1.100");
- * // => "a3f5c8b2e1d4f6a9"
- *
- * // User-Agent 포함
- * const hash2 = generateGuestUserHash(
- *   "192.168.1.100",
- *   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0"
- * );
- * // => "7f2e9d1a4c6b8e3f"
- *
+ * IP 기반 비회원 해시 생성 (SHA-256, 16자리)
  */
 export function generateGuestUserHash(ip: string, userAgent?: string): string {
     const crypto = require('crypto')
@@ -172,30 +172,15 @@ export function generateGuestUserHash(ip: string, userAgent?: string): string {
 }
 
 /**
- * IP 주소 마스킹 (개인정보보호 강화)
+ * IP 주소 마스킹 (개인정보보호)
  *
- * @description
- * IP 주소의 각 옥텟을 다른 패턴으로 마스킹하여 개인정보를 보호하면서도
- * 대략적인 지역 정보는 유지합니다.
- *
- * @example
- * IPv4: 123.178.234.159 -> 12*.*78.***. 15*
- * - 1번째 옥텟: 처음 두 자리만 남기고 나머지 * (예: 123 -> 12*)
- * - 2번째 옥텟: 마지막 두 자리만 남김 (예: 178 -> *78)
- * - 3번째 옥텟: 전체 *** (예: 234 -> ***)
- * - 4번째 옥텟: 처음 두 자리만 남기고 나머지 * (예: 159 -> 15*)
- *
- * IPv6: 2001:0db8:85a3:0000:0000:8a2e:0370:7334 -> 2001:0db8:****:****:****:****:****:****
+ * IPv4: 123.178.234.159 → 12*.*78.***.15*
+ * IPv6: 앞 2그룹만 표시, 나머지 마스킹
  */
-function isIPv6(ip: string): boolean {
-    return isValidIPv6(ip)
-}
-
 export function maskIP(ip: string): string {
     if (!ip || ip === 'unknown') return 'unknown'
 
-    if (isIPv6(ip)) {
-        // IPv6는 앞 2개 그룹만 표시하고 나머지 마스킹
+    if (isValidIPv6(ip)) {
         const groups = ip.split(':')
         if (groups.length >= 2) {
             const visibleParts = groups.slice(0, 2).join(':')
@@ -203,54 +188,36 @@ export function maskIP(ip: string): string {
             return `${visibleParts}:${maskedParts}`
         }
         return '****:****:****:****:****:****:****:****'
-    } else {
-        // IPv4 강화된 마스킹
-        const parts = ip.split('.')
-        if (parts.length === 4) {
-            // 각 옥텟에 다른 마스킹 패턴 적용
-            const masked = [
-                maskOctet(parts[0], 'first'), // 처음 두 자리 남김: 123 -> 12*
-                maskOctet(parts[1], 'second'), // 마지막 두 자리 남김: 178 -> *78
-                maskOctet(parts[2], 'third'), // 전체 마스킹: 234 -> ***
-                maskOctet(parts[3], 'fourth'), // 처음 두 자리 남김: 159 -> 15*
-            ]
-            return masked.join('.')
-        }
+    }
+
+    const parts = ip.split('.')
+    if (parts.length === 4) {
+        const masked = [
+            maskOctet(parts[0], 'first'),
+            maskOctet(parts[1], 'second'),
+            maskOctet(parts[2], 'third'),
+            maskOctet(parts[3], 'fourth'),
+        ]
+        return masked.join('.')
     }
 
     return ip
 }
 
-/**
- * 옥텟 마스킹 헬퍼 함수
- */
 function maskOctet(octet: string, position: 'first' | 'second' | 'third' | 'fourth'): string {
     const length = octet.length
-
     switch (position) {
         case 'first':
-            // 처음 두 자리 남기고 나머지 *
-            // 1 -> 1, 12 -> 12, 123 -> 12*, 255 -> 25*
             if (length <= 2) return octet
             return octet.substring(0, 2) + '*'.repeat(length - 2)
-
         case 'second':
-            // 마지막 두 자리만 남기고 앞을 *
-            // 1 -> 1, 12 -> 12, 123 -> *23, 178 -> *78
             if (length <= 2) return octet
             return '*'.repeat(length - 2) + octet.substring(length - 2)
-
         case 'third':
-            // 전체 마스킹
-            // 1 -> *, 12 -> **, 123 -> ***, 234 -> ***
             return '*'.repeat(Math.max(length, 1))
-
         case 'fourth':
-            // 처음 두 자리 남기고 나머지 *
-            // 1 -> 1, 12 -> 12, 123 -> 12*, 159 -> 15*
             if (length <= 2) return octet
             return octet.substring(0, 2) + '*'.repeat(length - 2)
-
         default:
             return '***'
     }

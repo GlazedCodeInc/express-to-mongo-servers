@@ -3,7 +3,7 @@
  * geoip-lite를 사용하여 로컬 GeoIP 데이터베이스에서 국가 정보 추출
  */
 
-import { getUserIP } from './getUserIp'
+import { getUserIP, isLocalIP, normalizeIP } from './getUserIp'
 
 // geoip-lite를 안전하게 로드 (Vercel 환경에서 데이터 파일 누락 시 대응)
 let geoip: any = null
@@ -30,6 +30,33 @@ export interface CountryInfo {
     timezone?: string[]
     /** 조회 성공 여부 */
     isValid: boolean
+}
+
+// ─────────────────────────────────────────────────
+// IP → 국가 정보 메모리 캐시 (TTL: 1시간)
+// 동일 IP 반복 요청 시 외부 API 호출을 방지합니다.
+// ─────────────────────────────────────────────────
+const CACHE_TTL_MS = 60 * 60 * 1000 // 1시간
+
+interface CacheEntry {
+    data: CountryInfo
+    expiresAt: number
+}
+
+const ipCache = new Map<string, CacheEntry>()
+
+function getCached(ip: string): CountryInfo | null {
+    const entry = ipCache.get(ip)
+    if (!entry) return null
+    if (Date.now() > entry.expiresAt) {
+        ipCache.delete(ip)
+        return null
+    }
+    return entry.data
+}
+
+function setCache(ip: string, data: CountryInfo): void {
+    ipCache.set(ip, { data, expiresAt: Date.now() + CACHE_TTL_MS })
 }
 
 /**
@@ -502,10 +529,15 @@ const COUNTRY_TO_CONTINENT: Record<string, string> = {
  */
 export async function getUserCountry(req: Request | any): Promise<CountryInfo> {
     try {
-        // Request에서 IP 추출
-        const ip = await getUserIP(req)
+        // 진짜 로컬호스트(개발 머신)일 때만 한국으로 처리
+        // 컨테이너/클라우드 환경에서 req.socket이 LB의 사설 IP(10.x, 172.x)를 가리키는 경우
+        // isLocalIP를 쓰면 실제 프로덕션 트래픽을 한국으로 잘못 처리함 → localhost 한정 체크
+        const rawIp = normalizeIP((req as any).ip ?? req.socket?.remoteAddress ?? '')
+        if (rawIp === '127.0.0.1' || rawIp === '::1' || rawIp === 'localhost') {
+            return getDevelopmentCountry()
+        }
 
-        // IP로부터 국가 정보 조회
+        const ip = await getUserIP(req)
         return await getCountryFromIP(ip)
     } catch (error) {
         console.error('Failed to get user country from request:', error)
@@ -522,22 +554,25 @@ export async function getCountryFromIP(ip: string): Promise<CountryInfo> {
         return getDevelopmentCountry()
     }
 
+    // 캐시 확인 — 동일 IP는 1시간 동안 외부 API 재호출 없음
+    const cached = getCached(ip)
+    if (cached) return cached
+
     // 1. geoip-lite 사용 시도 (로컬 환경)
     if (geoip) {
         try {
             const geo = geoip.lookup(ip)
             if (geo && geo.country) {
-                const continent = COUNTRY_TO_CONTINENT[geo.country] || 'Unknown'
-                const timezones = geo.timezone ? [geo.timezone] : undefined
-
-                return {
+                const result: CountryInfo = {
                     countryCode: geo.country,
                     countryName: COUNTRY_NAMES[geo.country] || geo.country,
                     countryKoreanName: COUNTRY_KOREAN_NAMES[geo.country] || geo.country,
-                    continent: continent,
-                    timezone: timezones,
+                    continent: COUNTRY_TO_CONTINENT[geo.country] || 'Unknown',
+                    timezone: geo.timezone ? [geo.timezone] : undefined,
                     isValid: true,
                 }
+                setCache(ip, result)
+                return result
             }
         } catch (error) {
             console.warn('[getCountryFromIP] geoip-lite 조회 실패, 외부 API 사용:', error)
@@ -552,15 +587,16 @@ export async function getCountryFromIP(ip: string): Promise<CountryInfo> {
         if (response.ok) {
             const data = await response.json() as any
             if (data.status === 'success' && data.countryCode) {
-                const continent = COUNTRY_TO_CONTINENT[data.countryCode] || data.continentCode || 'Unknown'
-                return {
+                const result: CountryInfo = {
                     countryCode: data.countryCode,
                     countryName: COUNTRY_NAMES[data.countryCode] || data.country || data.countryCode,
                     countryKoreanName: COUNTRY_KOREAN_NAMES[data.countryCode] || data.country || data.countryCode,
-                    continent: continent,
+                    continent: COUNTRY_TO_CONTINENT[data.countryCode] || data.continentCode || 'Unknown',
                     timezone: data.timezone ? [data.timezone] : undefined,
                     isValid: true,
                 }
+                setCache(ip, result)
+                return result
             }
         }
     } catch (error) {
@@ -596,6 +632,15 @@ function getUnknownCountry(): CountryInfo {
         continent: 'Unknown',
         isValid: false,
     }
+}
+
+/**
+ * 한국 국가명 정규화 ("대한민국" → "한국")
+ * DB에 저장된 레거시 데이터와 신규 데이터 모두 일관되게 표시
+ */
+export function normalizeCountryName(name: string | undefined): string | undefined {
+    if (name === '대한민국') return '한국'
+    return name
 }
 
 /**

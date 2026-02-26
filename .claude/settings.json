@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(\"c:\\\\Users\\\\woghk\\\\Desktop\\\\express-ts-mongo\\\\src\\\\middlewares\\\\connectDB.ts\":*)",
+      "Bash(\"c:\\\\Users\\\\woghk\\\\Desktop\\\\express-ts-mongo\\\\src\\\\middlewares\\\\routers.ts\":*)",
+      "Bash(\"c:\\\\Users\\\\woghk\\\\Desktop\\\\express-ts-mongo\\\\src\\\\app\\\\semoso\\\\schemas\\\\comment.ts\":*)",
+      "Bash(\"c:\\\\Users\\\\woghk\\\\Desktop\\\\express-ts-mongo\\\\src\\\\app\\\\semoso\\\\schemas\\\\ssul.ts\":*)",
+      "Bash(\"c:\\\\Users\\\\woghk\\\\Desktop\\\\express-ts-mongo\\\\src\\\\app\\\\prompt-generate\\\\schemas\\\\comments.ts\":*)",
+      "Bash(\"c:\\\\Users\\\\woghk\\\\Desktop\\\\express-ts-mongo\\\\src\\\\app\\\\semoso\\\\routes\\\\comment-create.ts\":*)",
+      "Bash(\"c:\\\\Users\\\\woghk\\\\Desktop\\\\express-ts-mongo\\\\src\\\\app\\\\semoso\\\\routes\\\\comment-remove.ts\":*)",
+      "Bash(\"c:\\\\Users\\\\woghk\\\\Desktop\\\\express-ts-mongo\\\\src\\\\app\\\\prompt-generate\\\\routes\\\\create-comment.ts\":*)",
+      "Bash(\"c:\\\\Users\\\\woghk\\\\Desktop\\\\express-ts-mongo\\\\src\\\\app\\\\prompt-generate\\\\routes\\\\remove-comment.ts\":*)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\woghk\\.claude\\projects\\c--Users-woghk-Desktop-express-ts-mongo"
+    ]
+  }
+}

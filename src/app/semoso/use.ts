@@ -5,6 +5,6 @@ import commentsHandler from "./routes/comments";
 
 export default getRouters("semoso", (router) => {
   router.post("/comments", commentsHandler);
-  router.post("/comment-create", commentCreateHandler);
-  router.post("/comment-remove", commentRemoveHandler);
+  router.post("/create-comment", commentCreateHandler);
+  router.post("/remove-comment", commentRemoveHandler);
 });

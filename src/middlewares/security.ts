@@ -61,7 +61,7 @@ export const security = {
    *  body, params만 sanitize하는 커스텀 미들웨어로 대체 */
   noSqlSanitize: (req: Request, _res: Response, next: NextFunction) => {
     if (req.body) req.body = mongoSanitize.sanitize(req.body)
-    if (req.params) mongoSanitize.sanitize(req.params)
+    if (req.params) req.params = mongoSanitize.sanitize(req.params)
     next()
   },
 

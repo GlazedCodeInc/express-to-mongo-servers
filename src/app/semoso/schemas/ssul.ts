@@ -1,26 +1,19 @@
-import mongoose, { Model, Schema } from "mongoose";
+import { Connection, Model, Schema } from 'mongoose'
 
 type Types = {
-  category:
-    | "잡담"
-    | "일탈"
-    | "연애"
-    | "사회/정치"
-    | "취미"
-    | "주식/코인"
-    | "게임";
-  hashTags: string[];
-  title: string;
-  description: string;
-  imageUrls: string[];
-  isGuest: boolean;
-  createUserId: any;
-  createUserIp: string;
-  viewCount: number;
-  likeCount: number;
-  commentCount: number;
-  isDeleted: boolean;
-};
+  category: '잡담' | '일탈' | '연애' | '사회/정치' | '취미' | '주식/코인' | '게임'
+  hashTags: string[]
+  title: string
+  description: string
+  imageUrls: string[]
+  isGuest: boolean
+  createUserId: any
+  createUserIp: string
+  viewCount: number
+  likeCount: number
+  commentCount: number
+  isDeleted: boolean
+}
 
 const SsulSchema = new Schema<Types>(
   {
@@ -32,7 +25,7 @@ const SsulSchema = new Schema<Types>(
     isGuest: { type: Boolean, default: false },
     createUserId: {
       type: Schema.Types.ObjectId,
-      ref: "AppUser",
+      ref: 'AppUser',
       default: null,
     },
     createUserIp: { type: String, required: true },
@@ -46,15 +39,9 @@ const SsulSchema = new Schema<Types>(
     toJSON: { virtuals: true },
     versionKey: false,
     timestamps: true,
-  }
-);
+  },
+)
 
-let Ssul: Model<Types>;
-
-try {
-  Ssul = mongoose.model<Types>("Ssul");
-} catch (error) {
-  Ssul = mongoose.model<Types>("Ssul", SsulSchema);
+export default function getSsulModel(conn: Connection): Model<Types> {
+  return (conn.models['Ssul'] as Model<Types>) ?? conn.model<Types>('Ssul', SsulSchema)
 }
-
-export default Ssul;

@@ -10,6 +10,10 @@ dotenv.config()
 const app: Express = express()
 const PORT = 5000
 
+// CDN/프록시(Cloudflare, nginx) 뒤에서 실제 클라이언트 IP 신뢰
+// rate-limit이 CDN IP가 아닌 실제 사용자 IP별로 동작하려면 필수
+app.set('trust proxy', 1)
+
 // ─────────────────────────────────────────────────
 // 보안 미들웨어 (순서 중요)
 // ─────────────────────────────────────────────────

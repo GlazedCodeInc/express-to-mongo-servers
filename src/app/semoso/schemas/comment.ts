@@ -1,13 +1,5 @@
-import mongoose, { Model, Schema } from 'mongoose'
-
-interface CountryInfo {
-    countryCode: string // ISO 3166-1 alpha-2 (예: KR, US, JP)
-    countryName: string // 국가명 영문 (예: South Korea)
-    countryKoreanName: string // 국가명 한국어 (예: 대한민국)
-    continent: string // 대륙 코드 (예: AS, EU, NA)
-    timezone?: string[] // 타임존 배열 (예: ["Asia/Seoul"])
-    isValid: boolean // 조회 성공 여부
-}
+import { Connection, Model, Schema } from 'mongoose'
+import { CountryInfo } from '@/utils/getUserCountry'
 
 type Types = {
     type: 'comment' | 'reply'
@@ -29,12 +21,12 @@ const CommentSchema = new Schema<Types>(
         isGuest: { type: Boolean, default: true },
         userIp: { type: String, required: true, default: null },
         country: {
-            countryCode: { type: String }, // ISO 3166-1 alpha-2 (예: KR, US, JP)
-            countryName: { type: String }, // 국가명 영문 (예: South Korea)
-            countryKoreanName: { type: String }, // 국가명 한국어 (예: 대한민국)
-            continent: { type: String }, // 대륙 코드 (예: AS, EU, NA)
-            timezone: { type: [String] }, // 타임존 배열 (예: ["Asia/Seoul"])
-            isValid: { type: Boolean }, // 조회 성공 여부
+            countryCode: { type: String },
+            countryName: { type: String },
+            countryKoreanName: { type: String },
+            continent: { type: String },
+            timezone: { type: [String] },
+            isValid: { type: Boolean },
         },
         createUserId: {
             type: Schema.Types.ObjectId,
@@ -53,12 +45,6 @@ const CommentSchema = new Schema<Types>(
     },
 )
 
-let Comments: Model<Types>
-
-try {
-    Comments = mongoose.model<Types>('SemosoComment')
-} catch (error) {
-    Comments = mongoose.model<Types>('SemosoComment', CommentSchema)
+export default function getCommentModel(conn: Connection): Model<Types> {
+    return (conn.models['SemosoComment'] as Model<Types>) ?? conn.model<Types>('SemosoComment', CommentSchema)
 }
-
-export default Comments

@@ -1,51 +1,57 @@
-import Comment from '@/_schemas/semoso/comment'
-import Ssul from '@/_schemas/semoso/ssul'
-import { getUserCountry } from '@/utils/getUserCountry'
-import { getUserIP } from '@/utils/getUserIp'
+import { getUserCountry } from "@/utils/getUserCountry";
+import { getUserIP } from "@/utils/getUserIp";
+import mongoose from "mongoose";
+import getCommentModel from "../schemas/comment";
+import getSsulModel from "../schemas/ssul";
 
 async function handler(req: any, res: any) {
-    const { type, menu, value, pageId } = req.body
+  const { type, menu, value, pageId } = req.body;
 
-    if (!pageId) {
-        return res.status(400).json({
-            success: false,
-            message: 'pageId가 필요합니다.',
-        })
-    }
+  if (!pageId) {
+    return res.status(400).json({
+      success: false,
+      message: "pageId가 필요합니다.",
+    });
+  }
 
-    if (req.method === 'POST') {
-        try {
-            const userIp = await getUserIP(req)
-            const country = await getUserCountry(req)
+  if (!mongoose.isValidObjectId(pageId)) {
+    return res.status(400).json({
+      success: false,
+      message: "유효하지 않은 pageId 형식입니다.",
+    });
+  }
 
-            const comment = await Comment.create({
-                type: type ?? 'comment',
-                menu,
-                text: value, // 스키마의 text 필드에 맞춤
-                isGuest: true,
-                userIp,
-                country,
-                pageId,
-            })
+  try {
+    const Comment = getCommentModel(req.db);
+    const Ssul = getSsulModel(req.db);
 
-            if (!pageId.match(/^[0-9a-fA-F]{24}$/)) {
-                console.warn('⚠️ 유효하지 않은 pageId:', pageId)
-            } else {
-                await Ssul.findByIdAndUpdate(pageId, {
-                    $inc: { commentCount: 1 },
-                })
-            }
+    const userIp = await getUserIP(req);
+    const country = await getUserCountry(req);
 
-            res.status(200).send({
-                success: true,
-                message: '댓글이 성공적으로 작성되었습니다.',
-                comment,
-            })
-        } catch (error: any) {
-            res.status(500).send(error)
-            console.log(error)
-        }
-    }
+    const comment = await Comment.create({
+      type: type ?? "comment",
+      menu,
+      text: value, // 스키마의 text 필드에 맞춤
+      isGuest: true,
+      userIp,
+      country,
+      pageId,
+    });
+
+    // pageId 유효성은 위에서 검증 완료 — 항상 실행
+    await Ssul.findByIdAndUpdate(pageId, {
+      $inc: { commentCount: 1 },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "댓글이 성공적으로 작성되었습니다.",
+      comment,
+    });
+  } catch (error: any) {
+    console.error("댓글 생성 실패:", error);
+    res.status(500).json({ success: false, error: "댓글 작성에 실패했습니다." });
+  }
 }
 
-export default handler
+export default handler;
