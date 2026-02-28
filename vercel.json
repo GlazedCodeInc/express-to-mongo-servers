@@ -14,5 +14,10 @@
       "src": "/(.*)",
       "dest": "dist/index.js"
     }
-  ]
+  ],
+  "functions": {
+    "dist/index.js": {
+      "maxDuration": 60
+    }
+  }
 }
