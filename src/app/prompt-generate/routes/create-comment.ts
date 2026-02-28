@@ -1,6 +1,6 @@
 import getCommentsModel from "../schemas/comments";
-import { getUserCountry } from "@/utils/getUserCountry";
-import { getUserIP } from "@/utils/getUserIp";
+import { getUserCountry } from "../../../utils/getUserCountry";
+import { getUserIP } from "../../../utils/getUserIp";
 
 async function handler(req: any, res: any) {
   const { text, imageUrls, prompt } = req.body;

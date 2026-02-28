@@ -1,4 +1,4 @@
-import { generateJSON } from "@/config/openRouter";
+import { generateJSON } from "../../../config/openRouter";
 import { AngleKeys } from "../docs/angles";
 import { LightingKeys, MoodKeys } from "../docs/lighting";
 import { systemPrompt } from "../docs/system-prompt";

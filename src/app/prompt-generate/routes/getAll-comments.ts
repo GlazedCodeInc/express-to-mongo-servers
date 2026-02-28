@@ -1,7 +1,7 @@
 import getCommentsModel from "../schemas/comments";
-import { usePagination } from "@/hooks/usePagination";
-import { maskIP } from "@/utils/getUserIp";
-import { normalizeCountryName } from "@/utils/getUserCountry";
+import { usePagination } from "../../../hooks/usePagination";
+import { maskIP } from "../../../utils/getUserIp";
+import { normalizeCountryName } from "../../../utils/getUserCountry";
 
 async function handler(req: any, res: any) {
   try {

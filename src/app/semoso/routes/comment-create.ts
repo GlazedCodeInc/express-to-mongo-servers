@@ -1,5 +1,5 @@
-import { getUserCountry } from "@/utils/getUserCountry";
-import { getUserIP } from "@/utils/getUserIp";
+import { getUserCountry } from "../../../utils/getUserCountry";
+import { getUserIP } from "../../../utils/getUserIp";
 import mongoose from "mongoose";
 import getCommentModel from "../schemas/comment";
 import getSsulModel from "../schemas/ssul";

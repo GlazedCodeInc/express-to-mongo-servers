@@ -1,4 +1,4 @@
-import getRouters from "@/middlewares/routers";
+import getRouters from "../../middlewares/routers";
 import commentCreateHandler from "./routes/comment-create";
 import commentRemoveHandler from "./routes/comment-remove";
 import commentsHandler from "./routes/comments";
