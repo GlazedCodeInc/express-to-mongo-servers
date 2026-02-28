@@ -1,5 +1,5 @@
 import dotenv from "dotenv";
-import express, { Express, Request, Response } from "express";
+import express, { Express, NextFunction, Request, Response } from "express";
 import promptGenerate from "./app/prompt-generate";
 import semoso from "./app/semoso";
 import { security } from "./middlewares/security";
@@ -62,6 +62,21 @@ app.get("/api/health", (_req: Request, res: Response) => {
 // ─────────────────────────────────────────────────
 app.use("/semoso", semoso);
 app.use("/prompt-generate", promptGenerate);
+
+// ─────────────────────────────────────────────────
+// 404 핸들러 — 등록되지 않은 경로
+// ─────────────────────────────────────────────────
+app.use((_req: Request, res: Response) => {
+  res.status(404).json({ success: false, error: "요청한 경로를 찾을 수 없습니다." });
+});
+
+// ─────────────────────────────────────────────────
+// 전역 에러 핸들러 — 미들웨어/라우트에서 전파된 에러 처리
+// ─────────────────────────────────────────────────
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  console.error("[Server Error]", err.message);
+  res.status(500).json({ success: false, error: "서버 오류가 발생했습니다." });
+});
 
 // Vercel 서버리스 환경에서는 listen() 불필요 — export default app으로 요청 처리
 if (!process.env.VERCEL) {
