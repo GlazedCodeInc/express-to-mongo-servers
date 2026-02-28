@@ -1,5 +1,5 @@
 import { Connection, Model, Schema } from 'mongoose'
-import { CountryInfo } from '@/utils/getUserCountry'
+import { CountryInfo } from '../../../utils/getUserCountry'
 
 type Types = {
     type: 'comment' | 'reply'
