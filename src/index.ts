@@ -63,8 +63,11 @@ app.get("/api/health", (_req: Request, res: Response) => {
 app.use("/semoso", semoso);
 app.use("/prompt-generate", promptGenerate);
 
-app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
-});
+// Vercel 서버리스 환경에서는 listen() 불필요 — export default app으로 요청 처리
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`Server is running on http://localhost:${PORT}`);
+  });
+}
 
 export default app;
