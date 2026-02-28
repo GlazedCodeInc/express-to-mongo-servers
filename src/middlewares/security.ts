@@ -37,7 +37,7 @@ const corsOptions: CorsOptions = {
 // ─────────────────────────────────────────────────
 const rateLimitOptions = {
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  limit: 100,
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, error: "요청이 너무 많습니다. 잠시 후 다시 시도하세요." },
