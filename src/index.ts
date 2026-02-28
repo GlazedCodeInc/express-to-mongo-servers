@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 import express, { Express, Request, Response } from "express";
-import promptGenerate from "./app/prompt-generate/use";
-import semoso from "./app/semoso/use";
+import promptGenerate from "./app/prompt-generate";
+import semoso from "./app/semoso";
 import { security } from "./middlewares/security";
 
 // 환경변수 로드 (가장 먼저 실행)

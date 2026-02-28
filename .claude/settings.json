@@ -9,10 +9,15 @@
       "Bash(\"c:\\\\Users\\\\woghk\\\\Desktop\\\\express-ts-mongo\\\\src\\\\app\\\\semoso\\\\routes\\\\comment-create.ts\":*)",
       "Bash(\"c:\\\\Users\\\\woghk\\\\Desktop\\\\express-ts-mongo\\\\src\\\\app\\\\semoso\\\\routes\\\\comment-remove.ts\":*)",
       "Bash(\"c:\\\\Users\\\\woghk\\\\Desktop\\\\express-ts-mongo\\\\src\\\\app\\\\prompt-generate\\\\routes\\\\create-comment.ts\":*)",
-      "Bash(\"c:\\\\Users\\\\woghk\\\\Desktop\\\\express-ts-mongo\\\\src\\\\app\\\\prompt-generate\\\\routes\\\\remove-comment.ts\":*)"
+      "Bash(\"c:\\\\Users\\\\woghk\\\\Desktop\\\\express-ts-mongo\\\\src\\\\app\\\\prompt-generate\\\\routes\\\\remove-comment.ts\":*)",
+      "Read(//c/Users/woghk/AppData/Roaming/Code/User/snippets/**)",
+      "Bash(grep -l \"NODEJS_POST\\\\|es.*handler\\\\|createHandler\" \"C:/Users/woghk/AppData/Roaming/Code/User/snippets/\"*.json)",
+      "Bash(done)",
+      "Read(//c/Users/woghk/AppData/Roaming/Cursor/User/snippets/**)"
     ],
     "additionalDirectories": [
-      "C:\\Users\\woghk\\.claude\\projects\\c--Users-woghk-Desktop-express-ts-mongo"
+      "C:\\Users\\woghk\\.claude\\projects\\c--Users-woghk-Desktop-express-ts-mongo",
+      "C:\\Users\\woghk\\AppData\\Roaming\\Code\\User\\snippets"
     ]
   }
 }
